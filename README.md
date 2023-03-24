@@ -16,6 +16,7 @@
 ```bash
 conda env create -f env.yml -n bab
 conda activate bab
+pip install git+https://github.com/huggingface/peft.git
 ```
 
 ## 数据处理 / Processing the Data
