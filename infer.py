@@ -35,7 +35,7 @@ with torch.no_grad():
         input_text = feature['context']
         print(input_text)
         ids = tokenizer.encode(input_text)
-        input_ids = torch.LongTensor([ids])
+        input_ids = torch.LongTensor([ids]).to('cuda')
         out = model.generate(
             input_ids=input_ids,
             max_length=150,
@@ -45,7 +45,7 @@ with torch.no_grad():
         out_text = tokenizer.decode(out[0])
         answer = out_text.replace(input_text, "").replace("\nEND", "").strip()
         item['infer_answer'] = answer
-        print(out_text)
+        print(answer)
         # print(f"### {idx+1}.Answer:\n", item.get('output'), '\n\n')
         answers.append({'index': idx, **item})
     # while True:
