@@ -11,6 +11,7 @@
 
 ![截屏2023-03-24 15 54 06](https://user-images.githubusercontent.com/33630730/227459835-a623a86b-5c25-47f9-be06-6e88d4a35e4c.png)
 
+## 环境准备 / Preparing the Enviroment
 
 ```bash
 conda env create -f env.yml -n bab
