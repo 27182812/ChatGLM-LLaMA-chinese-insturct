@@ -2,6 +2,11 @@ import torch
 from transformers import AutoTokenizer
 from peft import get_peft_model, LoraConfig, TaskType
 import json
+# import os
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 
 from modeling_chatglm import ChatGLMForConditionalGeneration
 from dataprocess import format_example
@@ -35,7 +40,7 @@ with torch.no_grad():
         input_text = feature['context']
         print(input_text)
         ids = tokenizer.encode(input_text)
-        input_ids = torch.LongTensor([ids]).to('cuda')
+        input_ids = torch.LongTensor([ids]).to(device)
         out = model.generate(
             input_ids=input_ids,
             max_length=150,

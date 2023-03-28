@@ -9,13 +9,11 @@ from dataclasses import dataclass, field
 import datasets
 import os
 
-device_map = "auto"
-world_size = int(os.environ.get('WORLD_SIZE', 1))
-ddp = world_size != 1
-if ddp:
-    device_map = {'':int(os.environ.get('LOCAL_RANK') or 0)}
-    GRADIENT_ACCUMULATION_STEPS = GRADIENT_ACCUMULATION_STEPS // world_size
-
+# device_map = "auto"
+# world_size = int(os.environ.get('WORLD_SIZE', 1))
+# ddp = world_size != 1
+# if ddp:
+#     device_map = {'':int(os.environ.get('LOCAL_RANK') or 0)}
 
 
 tokenizer = AutoTokenizer.from_pretrained("THUDM/chatglm-6b", trust_remote_code=True, ddp_find_unused_parameters=False if ddp else None,)
@@ -127,7 +125,7 @@ def main():
 
     # init model
     model = ChatGLMForConditionalGeneration.from_pretrained(
-        "THUDM/chatglm-6b", load_in_8bit=True, trust_remote_code=True, device_map=device_map
+        "THUDM/chatglm-6b", load_in_8bit=True, trust_remote_code=True, device_map="auto"
     )
     model.gradient_checkpointing_enable()
     model.enable_input_require_grads()
