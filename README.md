@@ -10,7 +10,7 @@
 
 ## 样例展示 / Some Examples
 ### LLaMa-7B
-在中文上的效果不如ChatGLM-6B，但考虑其对中文的支持本来就不好，已经不错了（不知道有没有大佬可以尝试增强一下LLaMa的中文能力）
+在中文上的效果不如ChatGLM-6B，但考虑其对中文的支持本来就不好，已经不错了（~~不知道有没有大佬可以尝试增强一下LLaMa的中文能力~~已经有了[Chinese-LLaMA-Alpaca](https://github.com/ymcui/Chinese-LLaMA-Alpaca)）
 
 <img width="1440" alt="截屏2023-03-28 10 31 06" src="https://user-images.githubusercontent.com/33630730/228116611-4ca5ffe6-71f5-4401-8e8e-38fc0f5bd575.png">
 
