@@ -47,4 +47,7 @@ Run `python infer.py` to do the inference. Show cases in the dataset by default.
 ### LLaMA-7B
 Run `python generate_llama1.py` to do the inference. Show cases in the dataset by default.
 
+## 友情链接
+- [kanchil](https://github.com/vxfla/kanchil): 一个探索小模型的潜力的开源项目
+
 
