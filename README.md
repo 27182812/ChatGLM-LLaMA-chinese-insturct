@@ -2,7 +2,7 @@
 
 探索中文instruct数据在ChatGLM, LLaMA等LLM上微调表现，结合[PEFT](https://github.com/huggingface/peft)等方法降低资源需求。
 
-基于[ChatGLM-6B](https://github.com/THUDM/ChatGLM-6B)、[ChatGLM-Tuning](https://github.com/mymusise/ChatGLM-Tuning)和[Aplaca-LoRA](https://github.com/tloen/alpaca-lora)。
+大部分基于[ChatGLM-6B](https://github.com/THUDM/ChatGLM-6B)、[ChatGLM-Tuning](https://github.com/mymusise/ChatGLM-Tuning)和[Aplaca-LoRA](https://github.com/tloen/alpaca-lora)。
 
 ##   时间线 / Time line
 - [2023-03-28] 完成在中文instruction数据上使用Lora对LLaMA-7B进行微调，发布了[微调后的权重](https://drive.google.com/file/d/1-nqxLz45HkMkhF0NUvkt785MZfPfMld6/view?usp=sharing)。
