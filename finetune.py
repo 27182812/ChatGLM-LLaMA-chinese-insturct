@@ -1,22 +1,16 @@
-from transformers import TrainingArguments
-from transformers import Trainer, HfArgumentParser
-from transformers import AutoTokenizer
-from modeling_chatglm import ChatGLMForConditionalGeneration
+import os
 import torch
 import torch.nn as nn
-from peft import get_peft_model, LoraConfig, TaskType
-from dataclasses import dataclass, field
 import datasets
-import os
-
-# device_map = "auto"
-# world_size = int(os.environ.get('WORLD_SIZE', 1))
-# ddp = world_size != 1
-# if ddp:
-#     device_map = {'':int(os.environ.get('LOCAL_RANK') or 0)}
-
-
-tokenizer = AutoTokenizer.from_pretrained("THUDM/chatglm-6b", trust_remote_code=True, ddp_find_unused_parameters=False if ddp else None,)
+from dataclasses import dataclass, field
+from transformers import (
+    AutoTokenizer,
+    TrainingArguments,
+    Trainer,
+    HfArgumentParser,
+)
+from modeling_chatglm import ChatGLMForConditionalGeneration
+from peft import get_peft_model, LoraConfig, TaskType
 
 
 @dataclass
@@ -26,10 +20,12 @@ class FinetuneArguments:
     lora_rank: int = field(default=8)
 
 
+tokenizer = AutoTokenizer.from_pretrained("THUDM/chatglm-6b", trust_remote_code=True)
+
+
 class CastOutputToFloat(nn.Sequential):
     def forward(self, x):
         return super().forward(x).to(torch.float32)
-
 
 def get_masks_and_position_ids(
     seq, seq_len, context_length, device, gmask=False, position_encoding_2d=True
@@ -62,7 +58,6 @@ def get_masks_and_position_ids(
         if not gmask:
             position_ids[context_length - 1 :] = mask_position
     return attention_mask, position_ids
-
 
 def data_collator(features: list) -> dict:
     len_ids = [len(feature["input_ids"]) for feature in features]
@@ -101,7 +96,7 @@ def data_collator(features: list) -> dict:
     }
 
 
-class ModifiedTrainer(Trainer):
+class CustomTrainer(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False):
         return model(
             input_ids=inputs["input_ids"],
@@ -111,32 +106,22 @@ class ModifiedTrainer(Trainer):
         ).loss
 
 
-def save_tunable_parameters(model, path):
-    saved_params = {
-        k: v.to("cpu") for k, v in model.named_parameters() if v.requires_grad
-    }
-    torch.save(saved_params, path)
-
-
 def main():
     finetune_args, training_args = HfArgumentParser(
         (FinetuneArguments, TrainingArguments)
     ).parse_args_into_dataclasses()
 
-    # init model
     model = ChatGLMForConditionalGeneration.from_pretrained(
-        "THUDM/chatglm-6b", load_in_8bit=True, trust_remote_code=True, device_map="auto"
+        "THUDM/chatglm-6b",
+        load_in_8bit=True,
+        trust_remote_code=True,
+        device_map="auto",
     )
-    model.gradient_checkpointing_enable()
-    model.enable_input_require_grads()
     model.is_parallelizable = True
     model.model_parallel = True
     model.lm_head = CastOutputToFloat(model.lm_head)
-    model.config.use_cache = (
-        False  # silence the warnings. Please re-enable for inference!
-    )
+    model.config.use_cache = False
 
-    # setup peft
     peft_config = LoraConfig(
         task_type=TaskType.CAUSAL_LM,
         inference_mode=False,
@@ -146,11 +131,9 @@ def main():
     )
     model = get_peft_model(model, peft_config)
 
-    # load dataset
     dataset = datasets.load_from_disk(finetune_args.dataset_path)
 
-    # start train
-    trainer = ModifiedTrainer(
+    trainer = CustomTrainer(
         model=model,
         train_dataset=dataset,
         args=training_args,
@@ -158,9 +141,9 @@ def main():
     )
     trainer.train()
 
-    # save model
-    save_tunable_parameters(
-        model, os.path.join(training_args.output_dir, "chatglm-lora.pt")
+    torch.save(
+        model.state_dict(),
+        os.path.join(training_args.output_dir, "chatglm-lora.pt"),
     )
 
 
