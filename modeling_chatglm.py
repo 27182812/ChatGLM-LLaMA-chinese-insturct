@@ -4,6 +4,8 @@ import math
 import copy
 import os
 import warnings
+import re
+import sys
 
 import torch
 import torch.utils.checkpoint
@@ -31,10 +33,12 @@ from transformers.generation.utils import LogitsProcessorList, StoppingCriteriaL
 from configuration_chatglm import ChatGLMConfig
 
 # flags required to enable jit fusion kernels
-torch._C._jit_set_profiling_mode(False)
-torch._C._jit_set_profiling_executor(False)
-torch._C._jit_override_can_fuse_on_cpu(True)
-torch._C._jit_override_can_fuse_on_gpu(True)
+
+if sys.platform != 'darwin':
+    torch._C._jit_set_profiling_mode(False)
+    torch._C._jit_set_profiling_executor(False)
+    torch._C._jit_override_can_fuse_on_cpu(True)
+    torch._C._jit_override_can_fuse_on_gpu(True)
 
 logger = logging.get_logger(__name__)
 
@@ -51,7 +55,7 @@ class InvalidScoreLogitsProcessor(LogitsProcessor):
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
         if torch.isnan(scores).any() or torch.isinf(scores).any():
             scores.zero_()
-            scores[..., 20005] = 1e5
+            scores[..., 20005] = 5e4
         return scores
 
 
@@ -265,7 +269,7 @@ def attention_fn(
         if not (attention_mask == 0).all():
             # if auto-regressive, skip
             attention_scores.masked_fill_(attention_mask, -10000.0)
-        dtype = attention_scores.type()
+        dtype = attention_scores.dtype
         attention_scores = attention_scores.float()
         attention_scores = attention_scores * query_key_layer_scaling_coeff
 
@@ -610,8 +614,8 @@ class ChatGLMPreTrainedModel(PreTrainedModel):
     a simple interface for downloading and loading pretrained models.
     """
 
-    is_parallelizable = True
-    supports_gradient_checkpointing = True
+    is_parallelizable = False
+    supports_gradient_checkpointing = False
     config_class = ChatGLMConfig
     base_model_prefix = "transformer"
     _no_split_modules = ["GLM6BBlock"]
@@ -619,12 +623,9 @@ class ChatGLMPreTrainedModel(PreTrainedModel):
     def __init__(self, *inputs, **kwargs):
         super().__init__(*inputs, **kwargs)
 
-    def _init_weights(self, module):
+    def _init_weights(self, module: nn.Module):
+        """Initialize the weights."""
         return
-
-    def _set_gradient_checkpointing(self, module, value=False):
-        if isinstance(module, (GLMBlock)):
-            module.gradient_checkpointing = value
 
 
 CHATGLM_6B_START_DOCSTRING = r"""
@@ -722,7 +723,6 @@ class ChatGLMModel(ChatGLMPreTrainedModel):
         self.inner_hidden_size = config.inner_hidden_size
         self.hidden_size_per_attention_head = self.hidden_size // self.num_attention_heads
         self.position_encoding_2d = config.position_encoding_2d
-        self.model_parallel = True
 
         self.word_embeddings = skip_init(
             torch.nn.Embedding,
@@ -757,9 +757,8 @@ class ChatGLMModel(ChatGLMPreTrainedModel):
     def set_input_embeddings(self, new_embeddings: torch.Tensor):
         self.word_embeddings = new_embeddings
 
-    @staticmethod
-    def get_masks(seq, device):
-        context_length = seq.index(150004) + 1
+    def get_masks(self, seq, device):
+        context_length = seq.index(self.config.bos_token_id) + 1
 
         attention_mask = torch.ones((1, len(seq), len(seq)), device=device)
         attention_mask.tril_()
@@ -770,9 +769,9 @@ class ChatGLMModel(ChatGLMPreTrainedModel):
         return attention_mask
 
     def get_position_ids(self, seq, mask_position, device, gmask=False):
-        context_length = len(seq)
+        context_length = seq.index(self.config.bos_token_id) + 1
         if self.position_encoding_2d:
-            seq_length = seq.index(150004)
+            seq_length = seq.index(self.config.bos_token_id)
             position_ids = torch.arange(context_length, dtype=torch.long, device=device)
             if not gmask:
                 position_ids[seq_length:] = mask_position
@@ -827,13 +826,7 @@ class ChatGLMModel(ChatGLMPreTrainedModel):
 
         if past_key_values is None:
             past_key_values = tuple([None] * len(self.layers))
-
-            MASK, gMASK = 150000, 150001
-            mask_token = MASK if MASK in input_ids else gMASK
-            use_gmask = False if MASK in input_ids else gMASK
             seq = input_ids[0].tolist()
-
-            mask_position = seq.index(mask_token)
 
             if attention_mask is None:
                 attention_mask = self.get_masks(
@@ -842,6 +835,11 @@ class ChatGLMModel(ChatGLMPreTrainedModel):
                 )
 
             if position_ids is None:
+                MASK, gMASK = 150000, 150001
+                mask_token = MASK if MASK in input_ids else gMASK
+                use_gmask = False if MASK in input_ids else gMASK
+
+                mask_position = seq.index(mask_token)
                 position_ids = self.get_position_ids(
                     seq=seq,
                     mask_position=mask_position,
@@ -940,12 +938,12 @@ class ChatGLMForConditionalGeneration(ChatGLMPreTrainedModel):
     def get_masks_and_position_ids(self, seq, mask_position, context_length, device, gmask=False):
         attention_mask = torch.ones((1, context_length, context_length), device=device)
         attention_mask.tril_()
-        attention_mask[..., :mask_position - 1] = 1
+        attention_mask[..., :context_length - 1] = 1
         attention_mask.unsqueeze_(1)
         attention_mask = (attention_mask < 0.5).bool()
 
         if self.position_encoding_2d:
-            seq_length = seq.index(150004)
+            seq_length = seq.index(self.config.bos_token_id)
             position_ids = torch.arange(context_length, dtype=torch.long, device=device)
             if not gmask:
                 position_ids[seq_length:] = mask_position
@@ -983,7 +981,7 @@ class ChatGLMForConditionalGeneration(ChatGLMPreTrainedModel):
 
         # only last token for input_ids if past is not None
         if past is not None or past_key_values is not None:
-            context_length = seq.index(150004)
+            context_length = seq.index(self.config.bos_token_id)
             last_token = input_ids[:, -1].unsqueeze(-1)
             if self.position_encoding_2d:
                 position_ids = torch.tensor([[[mask_position], [len(seq) - context_length]]], dtype=torch.long,
@@ -1091,6 +1089,21 @@ class ChatGLMForConditionalGeneration(ChatGLMPreTrainedModel):
             for layer_past in past
         )
 
+    def process_response(self, response):
+        response = response.strip()
+        response = response.replace("[[训练时间]]", "2023年")
+        punkts = [
+            [",", "，"],
+            ["!", "！"],
+            [":", "："],
+            [";", "；"],
+            ["\?", "？"],
+        ]
+        for item in punkts:
+            response = re.sub(r"([\u4e00-\u9fff])%s" % item[0], r"\1%s" % item[1], response)
+            response = re.sub(r"%s([\u4e00-\u9fff])" % item[0], r"%s\1" % item[1], response)
+        return response
+
     @torch.no_grad()
     def chat(self, tokenizer, query: str, history: List[Tuple[str, str]] = None, max_length: int = 2048, num_beams=1,
              do_sample=True, top_p=0.7, temperature=0.95, logits_processor=None, **kwargs):
@@ -1113,11 +1126,35 @@ class ChatGLMForConditionalGeneration(ChatGLMPreTrainedModel):
         outputs = self.generate(**input_ids, **gen_kwargs)
         outputs = outputs.tolist()[0][len(input_ids["input_ids"][0]):]
         response = tokenizer.decode(outputs)
-        response = response.strip()
-        response = response.replace("[[训练时间]]", "2023年")
+        response = self.process_response(response)
         history = history + [(query, response)]
         return response, history
 
+    @torch.no_grad()
+    def stream_chat(self, tokenizer, query: str, history: List[Tuple[str, str]] = None, max_length: int = 2048,
+                    do_sample=True, top_p=0.7, temperature=0.95, logits_processor=None, **kwargs):
+        if history is None:
+            history = []
+        if logits_processor is None:
+            logits_processor = LogitsProcessorList()
+        logits_processor.append(InvalidScoreLogitsProcessor())
+        gen_kwargs = {"max_length": max_length, "do_sample": do_sample, "top_p": top_p,
+                      "temperature": temperature, "logits_processor": logits_processor, **kwargs}
+        if not history:
+            prompt = query
+        else:
+            prompt = ""
+            for i, (old_query, response) in enumerate(history):
+                prompt += "[Round {}]\n问：{}\n答：{}\n".format(i, old_query, response)
+            prompt += "[Round {}]\n问：{}\n答：".format(len(history), query)
+        input_ids = tokenizer([prompt], return_tensors="pt", padding=True)
+        input_ids = input_ids.to(self.device)
+        for outputs in self.stream_generate(**input_ids, **gen_kwargs):
+            outputs = outputs.tolist()[0][len(input_ids["input_ids"][0]):]
+            response = tokenizer.decode(outputs)
+            response = self.process_response(response)
+            new_history = history + [(query, response)]
+            yield response, new_history
 
     @torch.no_grad()
     def stream_generate(
@@ -1220,6 +1257,7 @@ class ChatGLMForConditionalGeneration(ChatGLMPreTrainedModel):
             if unfinished_sequences.max() == 0 or stopping_criteria(input_ids, scores):
                 break
             yield input_ids
+
     def quantize(self, bits: int):
         from .quantization import quantize
         self.transformer = quantize(self.transformer, bits)
