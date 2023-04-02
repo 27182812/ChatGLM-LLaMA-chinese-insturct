@@ -1,17 +1,27 @@
-# ChatGLM-chinese-insturct
+# ChatGLM-LLaMA-chinese-insturct
 
 探索中文instruct数据在ChatGLM, LLaMA等LLM上微调表现，结合[PEFT](https://github.com/huggingface/peft)等方法降低资源需求。
 
 大部分基于[ChatGLM-6B](https://github.com/THUDM/ChatGLM-6B)、[ChatGLM-Tuning](https://github.com/mymusise/ChatGLM-Tuning)和[Aplaca-LoRA](https://github.com/tloen/alpaca-lora)，感谢大佬们。
 
 ##   时间线 / Time line
+- [2023-04-01] 扩充LLaMA的中文词表后，完成在中文instruction数据集[belle](https://huggingface.co/datasets/BelleGroup/train_0.5M_CN)上进行微调，发布了[微调后的权重](https://drive.google.com/file/d/12GA0a53DzoKE_dYLSDyBNp-IeCbLgKVn/view?usp=sharing)。
 - [2023-03-28] 完成在中文instruction数据上使用Lora对LLaMA-7B进行微调，发布了[微调后的权重](https://drive.google.com/file/d/1-nqxLz45HkMkhF0NUvkt785MZfPfMld6/view?usp=sharing)。
 - [2023-03-24] 完成在中文instruction数据上使用Lora对ChatGLM-6B进行微调，发布了[微调后的权重](https://drive.google.com/file/d/125hjpeS98qum5817XMPp7nY8L19aiOvJ/view?usp=sharing)。
 
 ## 样例展示 / Some Examples
+
 ### LLaMa-7B
 在中文上的效果不如ChatGLM-6B，但考虑其对中文的支持本来就不好，已经不错了（~~不知道有没有大佬可以尝试增强一下LLaMa的中文能力~~已经有了[Chinese-LLaMA-Alpaca](https://github.com/ymcui/Chinese-LLaMA-Alpaca)）
 
+#### LLaMA-7B-belle
+注：微调和预测代码和原始一样，但是注意要先根据[Chinese-LLaMA-Alpaca](https://github.com/ymcui/Chinese-LLaMA-Alpaca)的操作指引合并LoRA权重，生成全量模型权重，这样才是扩充了中文词表后的LLaMA。
+
+![截屏2023-04-01 21 43 34](https://user-images.githubusercontent.com/33630730/229339541-960a3422-a694-4b23-ad0e-16dc7bb491a9.png)
+![截屏2023-04-01 21 43 46](https://user-images.githubusercontent.com/33630730/229339544-0084e95e-384c-45fa-9757-1c26c5f4f8e0.png)
+![截屏2023-04-01 21 43 54](https://user-images.githubusercontent.com/33630730/229339551-c46db091-91de-41a5-bd52-28b6bc64edf6.png)
+
+#### LLaMA-7B-zh_data01
 <img width="1440" alt="截屏2023-03-28 10 31 06" src="https://user-images.githubusercontent.com/33630730/228116611-4ca5ffe6-71f5-4401-8e8e-38fc0f5bd575.png">
 
 <img width="600" alt="截屏2023-03-28 10 52 00" src="https://user-images.githubusercontent.com/33630730/228116679-e69d6081-77ff-4a0c-88ed-66fdad9a894a.png">
