@@ -10,6 +10,7 @@
 - [2023-03-24] 完成在中文instruction数据上使用Lora对ChatGLM-6B进行微调，发布了[微调后的权重](https://drive.google.com/file/d/125hjpeS98qum5817XMPp7nY8L19aiOvJ/view?usp=sharing)。
 
 ## 样例展示 / Some Examples
+对于一些生成语句重复现象，可以考虑调整可变参数以及利用规则化的后处理方式去规避。
 
 ### LLaMa-7B
 在中文上的效果不如ChatGLM-6B，但考虑其对中文的支持本来就不好，已经不错了（~~不知道有没有大佬可以尝试增强一下LLaMa的中文能力~~已经有了[Chinese-LLaMA-Alpaca](https://github.com/ymcui/Chinese-LLaMA-Alpaca)）
