@@ -1,0 +1,21 @@
+{
+  "base_model_name_or_path": "THUDM/chatglm-6b",
+  "bias": "none",
+  "enable_lora": [
+    true,
+    false,
+    true
+  ],
+  "fan_in_fan_out": true,
+  "inference_mode": true,
+  "lora_alpha": 32,
+  "lora_dropout": 0.1,
+  "merge_weights": false,
+  "modules_to_save": null,
+  "peft_type": "LORA",
+  "r": 8,
+  "target_modules": [
+    "query_key_value"
+  ],
+  "task_type": "CAUSAL_LM"
+}

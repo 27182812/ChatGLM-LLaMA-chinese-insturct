@@ -1,11 +1,11 @@
 import torch
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, AutoModel
 from peft import get_peft_model, LoraConfig, TaskType
 import json
 # import os
 # os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-from modeling_chatglm import ChatGLMForConditionalGeneration
+# from modeling_chatglm import ChatGLMForConditionalGeneration
 
 def format_example(example: dict) -> dict:
         context = f"Instruction: {example['instruction']}\n"
@@ -19,7 +19,7 @@ class ChatGLMPredictor:
     def __init__(self, model_path, peft_path, device):
         self.device = device
         torch.set_default_tensor_type(torch.cuda.HalfTensor)
-        self.model = ChatGLMForConditionalGeneration.from_pretrained(model_path, trust_remote_code=True, device_map='auto')
+        self.model = AutoModel.from_pretrained(model_path, trust_remote_code=True, device_map='auto')
         self.tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
 
         peft_config = LoraConfig(
@@ -39,7 +39,7 @@ class ChatGLMPredictor:
         input_ids = torch.LongTensor([ids]).to(self.device)
         out = self.model.generate(
             input_ids=input_ids,
-            max_length=150,
+            max_length=120,
             do_sample=False,
             temperature=0
         )
@@ -60,7 +60,7 @@ class ChatGLMPredictor:
 def main():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model_path = "THUDM/chatglm-6b"
-    peft_path = "output_zh-data01/chatglm-lora.pt"
+    peft_path = "output_zh-data01/adapter_model.bin"
     instructions_path = "data/zh-data01.json"
 
     predictor = ChatGLMPredictor(model_path, peft_path, device)
