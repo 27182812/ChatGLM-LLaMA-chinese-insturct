@@ -41,7 +41,7 @@
 <img width="600" alt="截屏2023-03-28 10 52 00" src="https://user-images.githubusercontent.com/33630730/228116679-e69d6081-77ff-4a0c-88ed-66fdad9a894a.png">
 
 
-## 环境准备 / Preparing the Enviroment
+## 环境准备 / Preparing the Environment
 
 ```bash
 conda env create -f env.yml -n bab
